@@ -35,10 +35,20 @@ object Anagrams extends AnagramsInterface :
    *
    * Note: you must use `groupBy` to implement this method!
    */
-  def wordOccurrences(w: Word): Occurrences = ???
+  def wordOccurrences(w: Word): Occurrences =
+    w.groupBy(c => c.toLower)
+      .map { case (c, s) => (c, s.length) }
+      .toList
+      .sorted
 
   /** Converts a sentence into its character occurrence list. */
-  def sentenceOccurrences(s: Sentence): Occurrences = ???
+  def sentenceOccurrences(s: Sentence): Occurrences =
+    s.flatMap(wordOccurrences)
+      .groupBy { case (c, i) => c }
+      .map { case (c, s) => (c, s.map(_._2).sum) }
+      .toList
+      .sorted
+
 
   /** The `dictionaryByOccurrences` is a `Map` from different occurrences to a sequence of all
    * the words that have that occurrence count.
@@ -55,10 +65,13 @@ object Anagrams extends AnagramsInterface :
    * List(('a', 1), ('e', 1), ('t', 1)) -> Seq("ate", "eat", "tea")
    *
    */
-  lazy val dictionaryByOccurrences: Map[Occurrences, List[Word]] = ???
+  lazy val dictionaryByOccurrences: Map[Occurrences, List[Word]] =
+    dictionary.groupBy(wordOccurrences)
+      .withDefaultValue(List.empty[Word])
 
   /** Returns all the anagrams of a given word. */
-  def wordAnagrams(word: Word): List[Word] = ???
+  def wordAnagrams(word: Word): List[Word] =
+    dictionaryByOccurrences(wordOccurrences(word))
 
   /** Returns the list of all subsets of the occurrence list.
    * This includes the occurrence itself, i.e. `List(('k', 1), ('o', 1))`
@@ -82,7 +95,19 @@ object Anagrams extends AnagramsInterface :
    * Note that the order of the occurrence list subsets does not matter -- the subsets
    * in the example above could have been displayed in some other order.
    */
-  def combinations(occurrences: Occurrences): List[Occurrences] = ???
+  def combinations(occurrences: Occurrences): List[Occurrences] =
+
+    def lengthCombinations(ch: Char, len: Int): Occurrences =
+      (1 until len).toList.map(i => (ch, i))
+
+    def check(occ: Occurrences): Boolean =
+      occ.groupBy((ch, i) => ch).forall((k, l) => l.size == 1)
+
+    val addByLength = occurrences.map(lengthCombinations)
+    val fullMatrix = addByLength.flatten ::: occurrences
+    val filteredMatrix = fullMatrix.toSet.subsets.toList
+    val unsorted = filteredMatrix.map(_.toList).filter(check)
+    unsorted.map(_.sorted)
 
   /** Subtracts occurrence list `y` from occurrence list `x`.
    *
@@ -94,7 +119,22 @@ object Anagrams extends AnagramsInterface :
    * Note: the resulting value is an occurrence - meaning it is sorted
    * and has no zero-entries.
    */
-  def subtract(x: Occurrences, y: Occurrences): Occurrences = ???
+  def subtract(x: Occurrences, y: Occurrences): Occurrences =
+
+    def subChar(list: List[(Char, Int)]): List[(Char, Int)] =
+      if list.length == 1 then
+        list
+      else
+        val (c1, i1) = list.head
+        val (c2, i2) = list.tail.head
+        List(c1 -> (i1 - i2))
+
+    (x ::: y).groupBy { case (ch, i) => ch }
+      .values
+      .toList
+      .flatMap(subChar)
+      .filter { case (ch, i) => i != 0 }
+      .sorted
 
   /** Returns a list of all anagram sentences of the given sentence.
    *
@@ -136,7 +176,31 @@ object Anagrams extends AnagramsInterface :
    *
    * Note: There is only one anagram of an empty sentence.
    */
-  def sentenceAnagrams(sentence: Sentence): List[Sentence] = ???
+  def sentenceAnagrams(sentence: Sentence): List[Sentence] =
+    val occ = sentenceOccurrences(sentence)
+
+    def loop(occ: Occurrences, branch: List[Occurrences], res: List[List[Occurrences]]): List[List[Occurrences]] =
+      val comb = combinations(occ).filter(dictionaryByOccurrences.contains)
+      if occ.isEmpty then
+        branch.reverse :: res
+      else if comb.isEmpty then
+        List(Nil)
+      else
+        comb.map(o => loop(subtract(occ, o), o :: branch, res)).reduce(_ ::: _)
+
+    def iter(listOcc: List[Occurrences], branch: Sentence, res: List[Sentence]): List[Sentence] =
+      if listOcc.isEmpty then
+        branch :: res
+      else
+        val words = dictionaryByOccurrences(listOcc.head)
+        words.map(w => iter(listOcc.tail, w :: branch, res)).reduce(_ ::: _)
+
+    if sentence.isEmpty then
+      List(Nil)
+    else
+      val occCombList = loop(occ, Nil, List(Nil)).filterNot(_ == Nil)
+      val sentList = occCombList.flatMap(listOcc => iter(listOcc, Nil, Nil))
+      sentList
 
 object Dictionary:
   def loadDictionary: List[String] =
@@ -154,3 +218,7 @@ object Dictionary:
         throw e
     finally
       wordstream.close()
+
+  import forcomp.Anagrams._
+
+  @main def run() = sentenceAnagrams(List("my", "a"))
