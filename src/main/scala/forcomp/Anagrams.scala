@@ -1,5 +1,6 @@
 package forcomp
 
+import scala.annotation.tailrec
 import scala.io.{Codec, Source}
 
 object Anagrams extends AnagramsInterface :
@@ -37,17 +38,13 @@ object Anagrams extends AnagramsInterface :
    */
   def wordOccurrences(w: Word): Occurrences =
     w.groupBy(c => c.toLower)
-      .map { case (c, s) => (c, s.length) }
+      .map((c, s) => (c, s.length))
       .toList
       .sorted
 
   /** Converts a sentence into its character occurrence list. */
   def sentenceOccurrences(s: Sentence): Occurrences =
-    s.flatMap(wordOccurrences)
-      .groupBy { case (c, i) => c }
-      .map { case (c, s) => (c, s.map(_._2).sum) }
-      .toList
-      .sorted
+    wordOccurrences(s.foldLeft("")(_ + _))
 
 
   /** The `dictionaryByOccurrences` is a `Map` from different occurrences to a sequence of all
@@ -97,17 +94,21 @@ object Anagrams extends AnagramsInterface :
    */
   def combinations(occurrences: Occurrences): List[Occurrences] =
 
-    def lengthCombinations(ch: Char, len: Int): Occurrences =
-      (1 until len).toList.map(i => (ch, i))
+    def combinationsByLength(letter: (Char, Int)): Occurrences =
+      val (ch, len) = letter
+      (0 to len).toList.map(i => ch -> i)
 
-    def check(occ: Occurrences): Boolean =
-      occ.groupBy((ch, i) => ch).forall((k, l) => l.size == 1)
+    def comb(occ: Occurrences): List[Occurrences] =
+      if occ.isEmpty then
+        List(List())
+      else
+        for {
+          arr <- combinationsByLength(occ.head)
+          newOcc <- comb(occ.tail)
+        } yield arr :: newOcc
 
-    val addByLength = occurrences.map(lengthCombinations)
-    val fullMatrix = addByLength.flatten ::: occurrences
-    val filteredMatrix = fullMatrix.toSet.subsets.toList
-    val unsorted = filteredMatrix.map(_.toList).filter(check)
-    unsorted.map(_.sorted)
+    val res = comb(occurrences)
+    res.map(x => x.filterNot((_, i) => i == 0))
 
   /** Subtracts occurrence list `y` from occurrence list `x`.
    *
@@ -121,20 +122,21 @@ object Anagrams extends AnagramsInterface :
    */
   def subtract(x: Occurrences, y: Occurrences): Occurrences =
 
-    def subChar(list: List[(Char, Int)]): List[(Char, Int)] =
-      if list.length == 1 then
-        list
+    def loop(subMap: Map[Char, Int], accMap: Map[Char, Int]): Map[Char, Int] =
+      if subMap.isEmpty then
+        accMap
       else
-        val (c1, i1) = list.head
-        val (c2, i2) = list.tail.head
-        List(c1 -> (i1 - i2))
+        changeOcc(subMap, accMap)
 
-    (x ::: y).groupBy { case (ch, i) => ch }
-      .values
-      .toList
-      .flatMap(subChar)
-      .filter { case (ch, i) => i != 0 }
-      .sorted
+    def changeOcc(subMap: Map[Char, Int], accMap: Map[Char, Int]): Map[Char, Int] =
+      val (key, n) = subMap.head
+      val m = accMap(key)
+      if n == m then
+        loop(subMap.tail, accMap - key)
+      else
+        loop(subMap.tail, accMap.updated(key, m - n))
+
+    loop(y.toMap, x.toMap).toList.sorted
 
   /** Returns a list of all anagram sentences of the given sentence.
    *
@@ -178,29 +180,20 @@ object Anagrams extends AnagramsInterface :
    */
   def sentenceAnagrams(sentence: Sentence): List[Sentence] =
     val occ = sentenceOccurrences(sentence)
+    val dictionary = dictionaryByOccurrences
 
-    def loop(occ: Occurrences, branch: List[Occurrences], res: List[List[Occurrences]]): List[List[Occurrences]] =
-      val comb = combinations(occ).filter(dictionaryByOccurrences.contains)
+    def sentences(occ: Occurrences): List[Sentence] =
       if occ.isEmpty then
-        branch.reverse :: res
-      else if comb.isEmpty then
-        List(Nil)
+        List(List())
       else
-        comb.map(o => loop(subtract(occ, o), o :: branch, res)).reduce(_ ::: _)
+        for {
+          wordOcc <- combinations(occ)
+          if dictionary.contains(wordOcc)
+          word <- dictionary(wordOcc)
+          sent <- sentences(subtract(occ, wordOcc))
+        } yield word :: sent
 
-    def iter(listOcc: List[Occurrences], branch: Sentence, res: List[Sentence]): List[Sentence] =
-      if listOcc.isEmpty then
-        branch :: res
-      else
-        val words = dictionaryByOccurrences(listOcc.head)
-        words.map(w => iter(listOcc.tail, w :: branch, res)).reduce(_ ::: _)
-
-    if sentence.isEmpty then
-      List(Nil)
-    else
-      val occCombList = loop(occ, Nil, List(Nil)).filterNot(_ == Nil)
-      val sentList = occCombList.flatMap(listOcc => iter(listOcc, Nil, Nil))
-      sentList
+    sentences(occ)
 
 object Dictionary:
   def loadDictionary: List[String] =
