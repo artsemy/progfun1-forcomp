@@ -213,5 +213,3 @@ object Dictionary:
       wordstream.close()
 
   import forcomp.Anagrams._
-
-  @main def run() = sentenceAnagrams(List("my", "a"))
