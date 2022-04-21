@@ -98,16 +98,15 @@ object Anagrams extends AnagramsInterface :
       val (ch, len) = letter
       (0 to len).toList.map(i => ch -> i)
 
-    def comb(occ: Occurrences): List[Occurrences] =
-      if occ.isEmpty then
+    val res =
+      if occurrences.isEmpty then
         List(List())
       else
         for {
-          arr <- combinationsByLength(occ.head)
-          newOcc <- comb(occ.tail)
+          arr <- combinationsByLength(occurrences.head)
+          newOcc <- combinations(occurrences.tail)
         } yield arr :: newOcc
 
-    val res = comb(occurrences)
     res.map(x => x.filterNot((_, i) => i == 0))
 
   /** Subtracts occurrence list `y` from occurrence list `x`.
@@ -121,22 +120,10 @@ object Anagrams extends AnagramsInterface :
    * and has no zero-entries.
    */
   def subtract(x: Occurrences, y: Occurrences): Occurrences =
-
-    def loop(subMap: Map[Char, Int], accMap: Map[Char, Int]): Map[Char, Int] =
-      if subMap.isEmpty then
-        accMap
-      else
-        changeOcc(subMap, accMap)
-
-    def changeOcc(subMap: Map[Char, Int], accMap: Map[Char, Int]): Map[Char, Int] =
-      val (key, n) = subMap.head
-      val m = accMap(key)
-      if n == m then
-        loop(subMap.tail, accMap - key)
-      else
-        loop(subMap.tail, accMap.updated(key, m - n))
-
-    loop(y.toMap, x.toMap).toList.sorted
+    val initMap = (x ++ y.map((ch, i) => (ch, -i))).groupBy((ch, i) => ch)
+    val countedMap = initMap.map((ch, list) => (ch, list.map((ch, i) => i).sum))
+    val filteredMap = countedMap.filterNot((ch, i) => i == 0)
+    filteredMap.toList.sorted
 
   /** Returns a list of all anagram sentences of the given sentence.
    *
@@ -180,7 +167,6 @@ object Anagrams extends AnagramsInterface :
    */
   def sentenceAnagrams(sentence: Sentence): List[Sentence] =
     val occ = sentenceOccurrences(sentence)
-    val dictionary = dictionaryByOccurrences
 
     def sentences(occ: Occurrences): List[Sentence] =
       if occ.isEmpty then
@@ -188,9 +174,33 @@ object Anagrams extends AnagramsInterface :
       else
         for {
           wordOcc <- combinations(occ)
-          if dictionary.contains(wordOcc)
-          word <- dictionary(wordOcc)
+          word <- dictionaryByOccurrences(wordOcc)
           sent <- sentences(subtract(occ, wordOcc))
+        } yield word :: sent
+
+    sentences(occ)
+
+  var dictionarySentByOccurrences: Map[Occurrences, List[Sentence]] = Map()
+
+  def sentenceAnagramsMemo(sentence: Sentence): List[Sentence] =
+    val occ = sentenceOccurrences(sentence)
+
+    def cache(subs: Occurrences): List[Sentence] =
+      if dictionarySentByOccurrences.contains(subs) then
+        dictionarySentByOccurrences(subs)
+      else
+        val resSent = sentences(subs)
+        dictionarySentByOccurrences = dictionarySentByOccurrences + (subs -> resSent)
+        resSent
+
+    def sentences(occ: Occurrences): List[Sentence] =
+      if occ.isEmpty then
+        List(List())
+      else
+        for {
+          wordOcc <- combinations(occ)
+          word <- dictionaryByOccurrences(wordOcc)
+          sent <- cache(subtract(occ, wordOcc))
         } yield word :: sent
 
     sentences(occ)

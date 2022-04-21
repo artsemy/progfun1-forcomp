@@ -66,33 +66,48 @@ class AnagramsSuite extends munit.FunSuite:
     assertEquals(sentenceAnagrams(sentence), List(Nil))
   }
 
+  val sentence = List("Linux", "rulez")
+  val sentence2 = List("Linux", "rulez", "Leon")
+  val anas = List(
+    List("Rex", "Lin", "Zulu"),
+    List("nil", "Zulu", "Rex"),
+    List("Rex", "nil", "Zulu"),
+    List("Zulu", "Rex", "Lin"),
+    List("null", "Uzi", "Rex"),
+    List("Rex", "Zulu", "Lin"),
+    List("Uzi", "null", "Rex"),
+    List("Rex", "null", "Uzi"),
+    List("null", "Rex", "Uzi"),
+    List("Lin", "Rex", "Zulu"),
+    List("nil", "Rex", "Zulu"),
+    List("Rex", "Uzi", "null"),
+    List("Rex", "Zulu", "nil"),
+    List("Zulu", "Rex", "nil"),
+    List("Zulu", "Lin", "Rex"),
+    List("Lin", "Zulu", "Rex"),
+    List("Uzi", "Rex", "null"),
+    List("Zulu", "nil", "Rex"),
+    List("rulez", "Linux"),
+    List("Linux", "rulez")
+  ).toSet
+
   test("sentence anagrams: Linux rulez (10pts)") {
-    val sentence = List("Linux", "rulez")
-    val anas = List(
-      List("Rex", "Lin", "Zulu"),
-      List("nil", "Zulu", "Rex"),
-      List("Rex", "nil", "Zulu"),
-      List("Zulu", "Rex", "Lin"),
-      List("null", "Uzi", "Rex"),
-      List("Rex", "Zulu", "Lin"),
-      List("Uzi", "null", "Rex"),
-      List("Rex", "null", "Uzi"),
-      List("null", "Rex", "Uzi"),
-      List("Lin", "Rex", "Zulu"),
-      List("nil", "Rex", "Zulu"),
-      List("Rex", "Uzi", "null"),
-      List("Rex", "Zulu", "nil"),
-      List("Zulu", "Rex", "nil"),
-      List("Zulu", "Lin", "Rex"),
-      List("Lin", "Zulu", "Rex"),
-      List("Uzi", "Rex", "null"),
-      List("Zulu", "nil", "Rex"),
-      List("rulez", "Linux"),
-      List("Linux", "rulez")
-    )
-    assertEquals(sentenceAnagrams(sentence).toSet, anas.toSet)
+    assertEquals(sentenceAnagrams(sentence).toSet, anas)
   }
 
+  test("sentence anagrams: long") {
+    assertEquals(sentenceAnagrams(sentence2).length, 18792)
+  }
+
+  test("sentence anagrams: long Memo ") {
+    assertEquals(sentenceAnagramsMemo(sentence2).length, 18792)
+  }
+
+  test("sentence results") {
+    val r1 = sentenceAnagrams(sentence).toSet
+    val r2 = sentenceAnagramsMemo(sentence).toSet
+    assertEquals(r1, r2)
+  }
 
   import scala.concurrent.duration.*
   override val munitTimeout = 10.seconds
