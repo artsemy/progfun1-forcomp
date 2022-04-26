@@ -186,9 +186,11 @@ object Anagrams extends AnagramsInterface :
     val occ = sentenceOccurrences(sentence)
 
     def cache(subs: Occurrences): List[Sentence] =
+      println(dictionarySentByOccurrences.size)
       if !dictionarySentByOccurrences.contains(subs) then
-        val resSent = sentences(subs)
-        dictionarySentByOccurrences += (subs -> resSent)
+//        val resSent = sentences(subs)
+//        dictionarySentByOccurrences += (subs -> resSent)
+        dictionarySentByOccurrences += (subs -> sentences(subs))
       dictionarySentByOccurrences(subs)
 
     def sentences(occ: Occurrences): List[Sentence] =
