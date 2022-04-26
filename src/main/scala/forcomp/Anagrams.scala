@@ -186,12 +186,10 @@ object Anagrams extends AnagramsInterface :
     val occ = sentenceOccurrences(sentence)
 
     def cache(subs: Occurrences): List[Sentence] =
-      if dictionarySentByOccurrences.contains(subs) then
-        dictionarySentByOccurrences(subs)
-      else
+      if !dictionarySentByOccurrences.contains(subs) then
         val resSent = sentences(subs)
-        dictionarySentByOccurrences = dictionarySentByOccurrences + (subs -> resSent)
-        resSent
+        dictionarySentByOccurrences += (subs -> resSent)
+      dictionarySentByOccurrences(subs)
 
     def sentences(occ: Occurrences): List[Sentence] =
       if occ.isEmpty then
@@ -203,7 +201,7 @@ object Anagrams extends AnagramsInterface :
           sent <- cache(subtract(occ, wordOcc))
         } yield word :: sent
 
-    sentences(occ)
+    cache(occ)
 
 object Dictionary:
   def loadDictionary: List[String] =
