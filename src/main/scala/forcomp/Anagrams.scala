@@ -1,6 +1,7 @@
 package forcomp
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.io.{Codec, Source}
 
 object Anagrams extends AnagramsInterface :
@@ -180,16 +181,13 @@ object Anagrams extends AnagramsInterface :
 
     sentences(occ)
 
-  var dictionarySentByOccurrences: Map[Occurrences, List[Sentence]] = Map()
+  val dictionarySentByOccurrences: mutable.Map[Occurrences, List[Sentence]] = mutable.Map()
 
   def sentenceAnagramsMemo(sentence: Sentence): List[Sentence] =
     val occ = sentenceOccurrences(sentence)
 
     def cache(subs: Occurrences): List[Sentence] =
-      println(dictionarySentByOccurrences.size)
       if !dictionarySentByOccurrences.contains(subs) then
-//        val resSent = sentences(subs)
-//        dictionarySentByOccurrences += (subs -> resSent)
         dictionarySentByOccurrences += (subs -> sentences(subs))
       dictionarySentByOccurrences(subs)
 
